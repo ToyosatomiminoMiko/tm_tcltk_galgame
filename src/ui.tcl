@@ -1,27 +1,47 @@
+# 界面模块: 构建主窗口,标题屏,对话框文字区域与选项区域.
+# 同时负责文字逐字显示的动画,以及视觉层/背景位置的更新.
 namespace eval galgame {
     namespace export -force *
 }
 
+# UI 类: 管理与游戏表现相关的所有 Tk 组件和界面状态.
 oo::class create galgame::UI {
+    # 主窗口路径.
     variable root
+    # 主窗口对象引用(此处为 ".").
     variable top
+    # 应用对象,用于回调游戏流程.
     variable app
+    # 配置对象.
     variable config
+    # 视觉绘制对象.
     variable visual
+    # 顶部位置标签.
     variable location_label
+    # 说话人名字标签.
     variable name_label
+    # 对话框文本组件.
     variable dialogue_text
+    # 标题屏框架.
     variable title_frame
+    # 选项框架.
     variable choice_frame
+    # 是否正在逐字显示.
     variable typing
+    # 当前句子的说话人与文本.
     variable line_name
     variable line_text
+    # 已逐字显示的字符数.
     variable typed_len
+    # 逐字动画的 after 任务编号.
     variable typing_job
+    # 选项是否正在展示.
     variable choice_active
+    # 自动播放与快进按钮.
     variable auto_btn
     variable skip_btn
 
+    # 构造主界面并展示标题屏.
     constructor {root_widget app_obj config_obj} {
         set top $root_widget
         set root ""
@@ -44,6 +64,7 @@ oo::class create galgame::UI {
         my show_title
     }
 
+    # 构建所有界面组件与事件绑定.
     method build {} {
         set root ""
         $top configure -background "#121417"
@@ -99,6 +120,7 @@ oo::class create galgame::UI {
         my build_choice_frame
     }
 
+    # 构建标题屏及其按钮.
     method build_title_screen {} {
         set title_frame [ttk::frame $root.title]
         ttk::label $title_frame.title -text [$config get title] -font [list TkDefaultFont 30 bold]
@@ -116,6 +138,7 @@ oo::class create galgame::UI {
             $title_frame.buttons.config $title_frame.buttons.quit -side top -pady 6
     }
 
+    # 构建选项框架,但默认不显示.
     method build_choice_frame {} {
         set choice_frame [ttk::frame $root.choice -relief raised -padding 18]
         ttk::label $choice_frame.label -text "选择" -font [list TkDefaultFont 14 bold]
@@ -124,6 +147,7 @@ oo::class create galgame::UI {
         pack $choice_frame.buttons -pady 8
     }
 
+    # 显示标题屏并清空对话区.
     method show_title {} {
         my hide_choice
         my clear_line
@@ -132,16 +156,19 @@ oo::class create galgame::UI {
         $location_label configure -text "标题"
     }
 
+    # 隐藏标题屏,进入游戏界面.
     method show_game {} {
         place forget $title_frame
         raise $root.canvas
         my hide_choice
     }
 
+    # 更新顶部位置标签.
     method set_location {text} {
         $location_label configure -text $text
     }
 
+    # 把背景编号翻译成可读的中文地点名.
     method location_name {bg_id} {
         switch -- $bg_id {
             "classroom" { return "教室" }
@@ -154,16 +181,19 @@ oo::class create galgame::UI {
         }
     }
 
+    # 切换背景并同步更新位置标签.
     method set_background {id} {
         $visual set_background $id
         my set_location [my location_name $id]
     }
 
+    # 切换 CG 并把位置标签设为回忆.
     method set_cg {id} {
         $visual set_cg $id
         my set_location "回忆"
     }
 
+    # 以下方法把角色表现转发给视觉层.
     method show_character {name pose x} {
         $visual show_character $name $pose $x
     }
@@ -176,6 +206,7 @@ oo::class create galgame::UI {
         $visual set_characters $characters
     }
 
+    # 开始显示一句台词,重置进度并启动逐字动画.
     method show_line {name text} {
         my cancel_typing_job
         set line_name $name
@@ -189,6 +220,7 @@ oo::class create galgame::UI {
         my schedule_typing_tick
     }
 
+    # 按配置的文字间隔调度下一次逐字更新.
     method schedule_typing_tick {} {
         if {!$typing} return
         set delay [$config get text_delay_ms]
@@ -196,6 +228,7 @@ oo::class create galgame::UI {
         set typing_job [after $delay [list [self] animate_tick]]
     }
 
+    # 每次显示一个字符,直到整句显示完.
     method animate_tick {} {
         if {!$typing} return
         incr typed_len
@@ -216,6 +249,7 @@ oo::class create galgame::UI {
         }
     }
 
+    # 立即显示整句台词,结束逐字动画.
     method finish_typing {} {
         my cancel_typing_job
         if {$line_text ne ""} {
@@ -229,6 +263,7 @@ oo::class create galgame::UI {
         set typing 0
     }
 
+    # 清空对话框区域与相关状态.
     method clear_line {} {
         my cancel_typing_job
         set typing 0
@@ -241,6 +276,7 @@ oo::class create galgame::UI {
         $dialogue_text configure -state disabled
     }
 
+    # 点击事件: 选项展示时忽略,标题屏上忽略,其余情况推进对话.
     method on_click {} {
         if {$choice_active} return
         if {[winfo ismapped $title_frame]} return
@@ -251,10 +287,12 @@ oo::class create galgame::UI {
         }
     }
 
+    # 键盘点击事件复用鼠标点击逻辑.
     method on_key_click {} {
         my on_click
     }
 
+    # 展示一组选项按钮,每个按钮绑定到对应跳转目标.
     method show_choice {targets} {
         set choice_active 1
         foreach child [winfo children $choice_frame.buttons] {
@@ -273,6 +311,7 @@ oo::class create galgame::UI {
         raise $choice_frame
     }
 
+    # 隐藏选项框架并清除激活标记.
     method hide_choice {} {
         if {[winfo exists $choice_frame]} {
             place forget $choice_frame
@@ -280,8 +319,10 @@ oo::class create galgame::UI {
         set choice_active 0
     }
 
+    # 返回当前是否正在逐字显示.
     method is_typing {} { return $typing }
 
+    # 取消尚未执行的逐字动画任务.
     method cancel_typing_job {} {
         if {$typing_job ne ""} {
             catch {after cancel $typing_job}
@@ -289,6 +330,7 @@ oo::class create galgame::UI {
         }
     }
 
+    # 根据模式切换自动/快进按钮的文案.
     method set_mode_button {mode active} {
         if {$mode eq "auto"} {
             $auto_btn configure -text [expr {$active ? "自动:开" : "自动"}]
@@ -297,12 +339,14 @@ oo::class create galgame::UI {
         }
     }
 
+    # 应用配置中的文字字号.
     method apply_text_font {} {
         if {[info exists dialogue_text] && $dialogue_text ne ""} {
             $dialogue_text configure -font [list TkDefaultFont [$config get text_size]]
         }
     }
 
+    # 应用文字字号与全屏设置.
     method apply_config {} {
         my apply_text_font
         wm attributes $top -fullscreen [$config get fullscreen]

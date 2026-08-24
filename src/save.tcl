@@ -1,27 +1,36 @@
+# 存档模块: 负责将游戏状态写入/读回磁盘文件.
+# 存档内容使用 Base64 编码,避免特殊字符破坏行式格式.
 namespace eval galgame {
     namespace export -force *
 }
 
+# 将字符串编码为 Base64(UTF-8).
 proc galgame::b64_encode {value} {
     return [binary encode base64 [encoding convertto utf-8 $value]]
 }
 
+# 将 Base64 解码回字符串(UTF-8).
 proc galgame::b64_decode {value} {
     return [encoding convertfrom utf-8 [binary decode base64 $value]]
 }
 
+# SaveManager 类: 管理存档目录以及存档的读写与查询.
 oo::class create galgame::SaveManager {
+    # 存档目录路径.
     variable dir
 
+    # 构造时确保存档目录存在.
     constructor {root} {
         set dir [file join $root saves]
         file mkdir $dir
     }
 
+    # 根据槽位号生成对应的存档文件路径.
     method slot_path {slot} {
         return [file join $dir [format "slot%02d.save" $slot]]
     }
 
+    # 将状态对象序列化写入指定槽位.
     method save {slot state} {
         set path [my slot_path $slot]
         set f [open $path w]
@@ -44,6 +53,7 @@ oo::class create galgame::SaveManager {
         return $path
     }
 
+    # 从指定槽位读取并解析存档,返回状态字典.
     method load {slot} {
         set path [my slot_path $slot]
         if {![file exists $path]} {
@@ -86,6 +96,7 @@ oo::class create galgame::SaveManager {
         return $data
     }
 
+    # 读取某槽位的存档时间摘要,用于在列表中展示.
     method slot_summary {slot} {
         set path [my slot_path $slot]
         if {![file exists $path]} {
@@ -111,6 +122,7 @@ oo::class create galgame::SaveManager {
         return [list $slot $info]
     }
 
+    # 返回最近一次存档的槽位号,没有存档时返回 -1.
     method most_recent {} {
         set best -1
         set best_time 0

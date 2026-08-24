@@ -1,11 +1,17 @@
+# 日志窗口模块: 提供独立的对话历史查看窗口.
+# 窗口内容由外部传入的历史记录驱动,打开时重新渲染.
 namespace eval galgame {
     namespace export -force *
 }
 
+# LogWindow 类: 一个可隐藏/显示的顶层窗口,用于展示对话历史.
 oo::class create galgame::LogWindow {
+    # 顶层窗口路径.
     variable win
+    # 用于显示历史的 Text 组件.
     variable text
 
+    # 构造历史窗口,初始为隐藏状态.
     constructor {parent history} {
         set win [toplevel [galgame::child_path $parent logwindow]]
         wm title $win "对话记录"
@@ -22,6 +28,7 @@ oo::class create galgame::LogWindow {
         my refresh $history
     }
 
+    # 用传入的历史记录重新填充文本区域.
     method refresh {history} {
         $text configure -state normal
         $text delete 1.0 end
@@ -29,7 +36,7 @@ oo::class create galgame::LogWindow {
             set name [lindex $item 0]
             set line [lindex $item 1]
             if {$name ne ""} {
-                $text insert end "$name：\n" name
+                $text insert end "$name:\n" name
             }
             $text insert end "$line\n\n" body
         }
@@ -39,6 +46,7 @@ oo::class create galgame::LogWindow {
         $text see end
     }
 
+    # 刷新并显示窗口,置于最前.
     method show {history} {
         my refresh $history
         wm deiconify $win

@@ -1,7 +1,10 @@
+# 对话框模块: 提供设置窗口与存档槽位选择窗口.
+# 两个窗口都通过回调把用户选择交回应用层处理.
 namespace eval galgame {
     namespace export -force *
 }
 
+# 将窗口移动到父窗口的居中位置.
 proc galgame::center_window {win parent} {
     update idletasks
     set pw [winfo rootx $parent]
@@ -13,16 +16,22 @@ proc galgame::center_window {win parent} {
     wm geometry $win "+[expr {$pw + ($pw2 - $w) / 2}]+[expr {$py + ($ph2 - $h) / 2}]"
 }
 
+# ConfigDialog 类: 让玩家调整文字速度,自动间隔,音效,音乐与全屏等设置.
 oo::class create galgame::ConfigDialog {
+    # 设置窗口路径.
     variable win
+    # 配置对象,最终保存回它.
     variable config
+    # 点击应用后执行的命令.
     variable apply_cmd
+    # 各设置项的临时值,由控件绑定读写.
     variable text_delay
     variable auto_delay
     variable sfx_enabled
     variable music_enabled
     variable fullscreen
 
+    # 构造设置窗口,并从配置对象载入当前值.
     constructor {parent config_obj apply_cmd_arg} {
         set config $config_obj
         set apply_cmd $apply_cmd_arg
@@ -39,7 +48,7 @@ oo::class create galgame::ConfigDialog {
         ttk::frame $win.body -padding 16
         pack $win.body -fill both -expand 1
 
-        ttk::label $win.body.l1 -text "文字速度（每字间隔）"
+        ttk::label $win.body.l1 -text "文字速度(每字间隔)"
         grid $win.body.l1 -row 0 -column 0 -sticky w
         ttk::scale $win.body.s1 -from 5 -to 100 -length 260 \
             -command [list [self] set_text_delay]
@@ -75,14 +84,17 @@ oo::class create galgame::ConfigDialog {
         raise $win
     }
 
+    # 文字速度滑杆回调,保存为整数毫秒.
     method set_text_delay {value} {
         set text_delay [expr {int($value)}]
     }
 
+    # 自动播放间隔滑杆回调,保存为整数毫秒.
     method set_auto_delay {value} {
         set auto_delay [expr {int($value)}]
     }
 
+    # 将临时值写回配置对象,关闭窗口并执行应用回调.
     method save {} {
         $config set text_delay_ms $text_delay
         $config set auto_delay_ms $auto_delay
@@ -94,14 +106,22 @@ oo::class create galgame::ConfigDialog {
     }
 }
 
+# SlotDialog 类: 提供存档/读档的槽位选择列表.
 oo::class create galgame::SlotDialog {
+    # 窗口路径.
     variable win
+    # 当前模式: save 或 load.
     variable mode
+    # 选择完成后执行的回调,并附上槽位号.
     variable callback
+    # 存档管理器对象.
     variable save_manager
+    # 槽位列表组件.
     variable listbox
+    # 当前选中的槽位号.
     variable current_slot
 
+    # 构造槽位选择窗口,并按模式切换文案.
     constructor {parent save_mgr mode_arg callback_arg} {
         set save_manager $save_mgr
         set mode $mode_arg
@@ -133,16 +153,18 @@ oo::class create galgame::SlotDialog {
         raise $win
     }
 
+    # 重新读取 6 个槽位的摘要并刷新列表.
     method refresh_list {} {
         $listbox delete 0 end
         for {set slot 1} {$slot <= 6} {incr slot} {
             set summary [$save_manager slot_summary $slot]
-            set label [format "存档 %d：%s" [lindex $summary 0] [lindex $summary 1]]
+            set label [format "存档 %d:%s" [lindex $summary 0] [lindex $summary 1]]
             $listbox insert end $label
         }
         $listbox selection set [expr {$current_slot - 1}]
     }
 
+    # 列表选中变化时更新当前槽位号.
     method select_slot {} {
         set idx [$listbox curselection]
         if {[llength $idx]} {
@@ -150,6 +172,7 @@ oo::class create galgame::SlotDialog {
         }
     }
 
+    # 确认选择: 读档模式下空槽位会被拦截,其余情况执行回调.
     method commit {} {
         if {$mode eq "load"} {
             set summary [$save_manager slot_summary $current_slot]

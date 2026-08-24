@@ -1,13 +1,21 @@
+# 引擎模块: 负责执行剧本指令,处理分支跳转,等待与菜单选项.
+# 它连接状态,界面与音频,是整个游戏的流程控制核心.
 namespace eval galgame {
     namespace export -force *
 }
 
+# Engine 类: 把解析后的剧本指令逐条派发到对应处理逻辑.
 oo::class create galgame::Engine {
+    # 应用对象,用于返回标题屏等整体流程控制.
     variable app
+    # 游戏状态对象.
     variable state
+    # 界面对象.
     variable ui
+    # 音频对象.
     variable audio
 
+    # 保存各依赖对象引用.
     constructor {app_obj state_obj ui_obj audio_obj} {
         set app $app_obj
         set state $state_obj
@@ -15,6 +23,7 @@ oo::class create galgame::Engine {
         set audio $audio_obj
     }
 
+    # 从头开始执行当前剧情.
     method start {} {
         set story [$state story]
         if {$story eq ""} {
@@ -26,6 +35,7 @@ oo::class create galgame::Engine {
         my run_loop
     }
 
+    # 玩家点击推进: 清除等待状态后继续执行.
     method advance {} {
         if {[$state waiting]} {
             $state set_waiting 0
@@ -33,6 +43,7 @@ oo::class create galgame::Engine {
         my run_loop
     }
 
+    # 玩家选择某个选项后,跳转到对应标签继续执行.
     method choose {label} {
         set story [$state story]
         $state set_waiting 0
@@ -41,6 +52,7 @@ oo::class create galgame::Engine {
         my run_loop
     }
 
+    # 读档后恢复执行: 优先恢复选项界面或当前台词.
     method resume_loaded {} {
         set story [$state story]
         if {$story eq ""} {
@@ -75,11 +87,13 @@ oo::class create galgame::Engine {
         my run_loop
     }
 
+    # 定时等待结束后继续执行.
     method resume_after_wait {} {
         $state set_waiting 0
         my run_loop
     }
 
+    # 主循环: 顺序读取并执行指令,直到需要等待或剧情结束.
     method run_loop {} {
         while {1} {
             set story [$state story]
@@ -104,6 +118,7 @@ oo::class create galgame::Engine {
         }
     }
 
+    # 根据命令名分发到对应处理,返回 1 表示继续执行,0 表示暂停.
     method dispatch {op args} {
         switch -- $op {
             "label" {
@@ -239,6 +254,7 @@ oo::class create galgame::Engine {
         error "Unknown story command: $op"
     }
 
+    # 显示一句台词,必要时写入历史并进入等待状态.
     method show_say {name text add_to_history} {
         if {$add_to_history} {
             $state add_history $name $text
@@ -247,6 +263,7 @@ oo::class create galgame::Engine {
         $ui show_line $name $text
     }
 
+    # 展示菜单选项,保存待选列表并进入等待状态.
     method show_menu {targets} {
         if {![llength $targets]} {
             error "menu has no choices"
@@ -256,6 +273,7 @@ oo::class create galgame::Engine {
         $ui show_choice $targets
     }
 
+    # 执行 if/ifnot 条件分支: 计算条件并决定是否跳转.
     method execute_if {negate args} {
         set story [$state story]
         set arrow [lsearch -exact $args "->"]
@@ -290,6 +308,7 @@ oo::class create galgame::Engine {
         }
     }
 
+    # 把任意标志值转换为布尔判断.
     method truthy {value} {
         if {$value eq ""} { return 0 }
         if {[string is true -strict $value]} { return 1 }
@@ -300,6 +319,7 @@ oo::class create galgame::Engine {
         return 1
     }
 
+    # 比较两个标志值,优先做数值比较,否则做字符串比较.
     method compare {a op b} {
         set numeric 0
         if {[string is double -strict $a] && [string is double -strict $b]} {

@@ -1,22 +1,36 @@
+# 状态模块: 集中保存一局游戏进行中的运行时数据.
+# 包括剧情对象,指令指针,剧情标志,对话历史,背景/CG,角色站位以及等待状态.
 namespace eval galgame {
     namespace export -force *
 }
 
+# GameState 类: 封装所有可变的游戏状态,并提供读写接口.
 oo::class create galgame::GameState {
+    # 当前加载的剧情对象.
     variable story
+    # 当前指令指针,指向 story 中的下一条指令.
     variable ip
+    # 剧情标志字典,用于记录分支条件.
     variable flags
+    # 对话历史列表,每项为 [名字 文本].
     variable history
+    # 当前背景编号.
     variable bg
+    # 当前登场角色字典,键为角色名,值为 [pose x].
     variable characters
+    # 当前 CG 编号.
     variable cg
+    # 是否处于等待用户或定时器的暂停状态.
     variable waiting
+    # 待展示的菜单选项列表,用于读档后恢复选项界面.
     variable pending_targets
 
+    # 构造时重置所有状态.
     constructor {} {
         my reset
     }
 
+    # 将所有状态恢复为初始值.
     method reset {} {
         set story ""
         set ip 0
@@ -29,12 +43,15 @@ oo::class create galgame::GameState {
         set pending_targets [list]
     }
 
+    # 以下为 story 的读取与设置.
     method story {} { return $story }
     method set_story {value} { set story $value }
 
+    # 以下为指令指针 ip 的读取与设置.
     method ip {} { return $ip }
     method set_ip {value} { set ip $value }
 
+    # 以下为剧情标志 flags 的相关操作.
     method flags {} { return $flags }
     method set_flag {name value} { dict set flags $name $value }
     method get_flag {name} {
@@ -44,6 +61,7 @@ oo::class create galgame::GameState {
         return ""
     }
     method unset_flag {name} { dict unset flags $name }
+    # 对数值型标志进行累加,非数字值按 0 处理.
     method incr_flag {name amount} {
         set current 0
         if {[dict exists $flags $name]} {
@@ -53,8 +71,10 @@ oo::class create galgame::GameState {
         dict set flags $name [expr {$current + $amount}]
     }
 
+    # 以下为对话历史 history 的相关操作.
     method history {} { return $history }
     method set_history {value} { set history $value }
+    # 追加一条对话记录,并限制最多保留最近 300 条.
     method add_history {name text} {
         lappend history [list $name $text]
         if {[llength $history] > 300} {
@@ -62,6 +82,7 @@ oo::class create galgame::GameState {
         }
     }
 
+    # 以下为背景 bg 与 CG 的相关操作,设置背景时同时清空 CG.
     method bg {} { return $bg }
     method set_bg {value} {
         set bg $value
@@ -72,6 +93,7 @@ oo::class create galgame::GameState {
         set cg $value
     }
 
+    # 以下为登场角色 characters 的相关操作.
     method characters {} { return $characters }
     method set_characters {value} { set characters $value }
     method set_character {name pose x} {
@@ -84,9 +106,11 @@ oo::class create galgame::GameState {
     }
     method clear_characters {} { set characters [dict create] }
 
+    # 以下为等待状态 waiting 的读取与设置.
     method waiting {} { return $waiting }
     method set_waiting {value} { set waiting $value }
 
+    # 以下为待展示选项 pending_targets 的读取与设置.
     method pending_targets {} { return $pending_targets }
     method set_pending_targets {value} { set pending_targets $value }
 }

@@ -9,7 +9,7 @@
 wish main.tcl
 ```
 
-如果只是想验证所有模块能加载，可以运行：
+如果只是想验证所有模块能加载，可以运行:
 
 ```bash
 wish main.tcl --smoke
@@ -59,7 +59,7 @@ jump start
 end
 ```
 
-常用命令：
+常用命令:
 
 - `label <name>` 定义跳转点
 - `jump <label>` 无条件跳转
