@@ -95,8 +95,7 @@ oo::class create galgame::Application {
     # 将当前状态保存到指定槽位,没有进行中的游戏时给出提示.
     method save_slot {slot} {
         if {[$state story] eq ""} {
-            tk_messageBox -parent $root -type ok -icon info \
-                -message "当前没有正在进行的游戏。"
+            tk_messageBox -parent $root -type ok -icon info -message "当前没有正在进行的游戏."
             return
         }
         $save_manager save $slot $state
@@ -108,8 +107,7 @@ oo::class create galgame::Application {
         set data [$save_manager load $slot]
         set script_path [dict get $data script]
         if {![file exists $script_path]} {
-            tk_messageBox -parent $root -type ok -icon error \
-                -message "存档对应的剧本不存在:\n$script_path"
+            tk_messageBox -parent $root -type ok -icon error -message "存档对应的剧本不存在:\n$script_path"
             return
         }
 

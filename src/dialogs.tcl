@@ -50,8 +50,7 @@ oo::class create galgame::ConfigDialog {
 
         ttk::label $win.body.l1 -text "文字速度(每字间隔)"
         grid $win.body.l1 -row 0 -column 0 -sticky w
-        ttk::scale $win.body.s1 -from 5 -to 100 -length 260 \
-            -command [list [self] set_text_delay]
+        ttk::scale $win.body.s1 -from 5 -to 100 -length 260 -command [list [self] set_text_delay]
         $win.body.s1 set $text_delay
         grid $win.body.s1 -row 0 -column 1 -pady 8
         ttk::label $win.body.v1 -textvariable [self namespace]::text_delay
@@ -59,8 +58,7 @@ oo::class create galgame::ConfigDialog {
 
         ttk::label $win.body.l2 -text "自动播放间隔"
         grid $win.body.l2 -row 1 -column 0 -sticky w
-        ttk::scale $win.body.s2 -from 500 -to 5000 -length 260 \
-            -command [list [self] set_auto_delay]
+        ttk::scale $win.body.s2 -from 500 -to 5000 -length 260 -command [list [self] set_auto_delay]
         $win.body.s2 set $auto_delay
         grid $win.body.s2 -row 1 -column 1 -pady 8
         ttk::label $win.body.v2 -textvariable [self namespace]::auto_delay
@@ -141,9 +139,7 @@ oo::class create galgame::SlotDialog {
 
         ttk::frame $win.body.actions
         pack $win.body.actions -side bottom -pady 10
-        ttk::button $win.body.actions.ok \
-            -text [expr {$mode eq "save" ? "保存到此格" : "读取此格"}] \
-            -command [list [self] commit]
+        ttk::button $win.body.actions.ok -text [expr {$mode eq "save" ? "保存到此格" : "读取此格"}] -command [list [self] commit]
         ttk::button $win.body.actions.cancel -text "取消" -command [list $win destroy]
         pack $win.body.actions.ok $win.body.actions.cancel -side left -padx 8
 
@@ -177,8 +173,7 @@ oo::class create galgame::SlotDialog {
         if {$mode eq "load"} {
             set summary [$save_manager slot_summary $current_slot]
             if {[lindex $summary 1] eq "空存档"} {
-                tk_messageBox -parent $win -type ok -icon warning \
-                    -message "该存档格为空。"
+                tk_messageBox -parent $win -type ok -icon warning -message "该存档格为空."
                 return
             }
         }
