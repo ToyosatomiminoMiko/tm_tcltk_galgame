@@ -1,7 +1,7 @@
 # Tcl/Tk Galgame Framework
 
-一个用 Tcl/Tk 写的小型 Galgame 框架示例。它把“剧本、状态、表现层、输入控制、存档”拆开，
-便于继续增加角色、演出命令、音视频后端和自定义 UI。
+一个用 Tcl/Tk 写的小型 Galgame 框架示例.它把“剧本、状态、表现层、输入控制、存档”拆开,
+便于继续增加角色、演出命令、音视频后端和自定义 UI.
 
 ## 运行
 
@@ -9,7 +9,7 @@
 wish main.tcl
 ```
 
-如果只是想验证所有模块能加载，可以运行:
+如果只是想验证所有模块能加载,可以运行:
 
 ```bash
 wish main.tcl --smoke
@@ -38,14 +38,14 @@ assets/                 后续放入真实图片
 
 ## 剧本语法
 
-每行一条命令，`#` 开头为注释。双引号字符串可含中文和空格。
+每行一条命令,`#` 开头为注释.双引号字符串可含中文和空格.
 
 ```text
 label start
 bg classroom
 show alice normal center
-say "艾莉丝" "今天也一起回家吗？"
-narrate "夕阳把影子拉得很长。"
+say "Alice" "今天也一起回家吗？"
+narrate "夕阳把影子拉得很长."
 menu
 option "去图书馆" library
 option "回家" home
@@ -79,7 +79,7 @@ end
 
 ## 扩展方向
 
-- `src/visual.tcl` 的占位绘制替换为真实图片、立绘变换和转场。
-- `src/audio.tcl` 接入 Snack、`vlc` 或其他后端。
-- `src/script.tcl` 增加演出指令，并在 `src/engine.tcl` 的 `dispatch` 中处理。
-- `src/save.tcl` 已经保存旗标、角色、背景、历史记录和当前指令位置，可按需加入变量、CG 收集和成就。
+- `src/visual.tcl` 的占位绘制替换为真实图片、立绘变换和转场.
+- `src/audio.tcl` 接入 Snack、`vlc` 或其他后端.
+- `src/script.tcl` 增加演出指令,并在 `src/engine.tcl` 的 `dispatch` 中处理.
+- `src/save.tcl` 已经保存旗标、角色、背景、历史记录和当前指令位置,可按需加入变量、CG 收集和成就.
