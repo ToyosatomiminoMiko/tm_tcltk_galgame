@@ -147,10 +147,17 @@ oo::class create galgame::UI {
         pack $choice_frame.buttons -pady 8
     }
 
-    # 显示标题屏并清空对话区.
-    method show_title {} {
+    # 丢弃上一个场景的全部视觉残留:画布,台词框,选项按钮.
+    # 场景边界(label)与返回标题/进入游戏时都会调用,保证不留下旧画面.
+    method reset_scene {} {
         my hide_choice
         my clear_line
+        $visual clear
+    }
+
+    # 显示标题屏并清空对话区.
+    method show_title {} {
+        my reset_scene
         place $title_frame -x 0 -y 0 -relwidth 1 -relheight 1
         raise $title_frame
         $location_label configure -text "标题"
@@ -160,7 +167,7 @@ oo::class create galgame::UI {
     method show_game {} {
         place forget $title_frame
         raise $root.canvas
-        my hide_choice
+        my reset_scene
     }
 
     # 更新顶部位置标签.
@@ -311,10 +318,15 @@ oo::class create galgame::UI {
         raise $choice_frame
     }
 
-    # 隐藏选项框架并清除激活标记.
+    # 隐藏选项框架,销毁选项按钮并清除激活标记.
+    # [为什么必须销毁按钮] place forget 只把窗口移出布局,组件本身仍驻留
+    # 内存并持有对 app 的回调引用;选项是一次性的,选完就应释放.
     method hide_choice {} {
         if {[winfo exists $choice_frame]} {
             place forget $choice_frame
+            foreach child [winfo children $choice_frame.buttons] {
+                destroy $child
+            }
         }
         set choice_active 0
     }

@@ -14,6 +14,8 @@ oo::class create galgame::Engine {
     variable ui
     # 音频对象.
     variable audio
+    # 当前 wait 命令的 after 任务编号,非空表示有等待尚未触发.
+    variable wait_job
 
     # 保存各依赖对象引用.
     constructor {app_obj state_obj ui_obj audio_obj} {
@@ -21,6 +23,18 @@ oo::class create galgame::Engine {
         set state $state_obj
         set ui $ui_obj
         set audio $audio_obj
+        set wait_job ""
+    }
+
+    # 取消尚未触发的 wait 定时器.
+    # [为什么必须取消] after 回调持有 app 对象,若不取消,玩家在等待期间
+    # 返回标题屏或读档后,旧回调仍会在稍后触发并让剧情在标题屏背后继续
+    # 执行;同一个 wait 与玩家点击也会因此重复推进一步.
+    method cancel_wait {} {
+        if {$wait_job ne ""} {
+            catch {after cancel $wait_job}
+            set wait_job ""
+        }
     }
 
     # 从头开始执行当前剧情.
@@ -29,6 +43,7 @@ oo::class create galgame::Engine {
         if {$story eq ""} {
             error "No story has been loaded"
         }
+        my cancel_wait
         $state set_ip 0
         $state set_waiting 0
         $state set_pending_targets [list]
@@ -37,6 +52,7 @@ oo::class create galgame::Engine {
 
     # 玩家点击推进: 清除等待状态后继续执行.
     method advance {} {
+        my cancel_wait
         if {[$state waiting]} {
             $state set_waiting 0
         }
@@ -45,6 +61,7 @@ oo::class create galgame::Engine {
 
     # 玩家选择某个选项后,跳转到对应标签继续执行.
     method choose {label} {
+        my cancel_wait
         set story [$state story]
         $state set_waiting 0
         $state set_pending_targets [list]
@@ -89,8 +106,19 @@ oo::class create galgame::Engine {
 
     # 定时等待结束后继续执行.
     method resume_after_wait {} {
+        set wait_job ""
         $state set_waiting 0
         my run_loop
+    }
+
+    # 进入一个新 label: 把它当作场景边界,丢弃上一个场景的残留.
+    # [为什么挂在 label 上] jump / if / menu 选项最终都是把 ip 指到某个
+    # label,再过一遍 run_loop;在 label 处统一清理,三种跳转方式以及顺序
+    # 落入 label 的情况都能覆盖,不需要在每个跳转命令里各写一遍.
+    method enter_scene {} {
+        my cancel_wait
+        $state reset_scene
+        $ui reset_scene
     }
 
     # 主循环: 顺序读取并执行指令,直到需要等待或剧情结束.
@@ -122,6 +150,7 @@ oo::class create galgame::Engine {
     method dispatch {op args} {
         switch -- $op {
             "label" {
+                my enter_scene
                 return 1
             }
             "say" {
@@ -243,7 +272,7 @@ oo::class create galgame::Engine {
                     error "wait requires <milliseconds>"
                 }
                 $state set_waiting 1
-                after [lindex $args 0] [list $app resume_wait]
+                set wait_job [after [lindex $args 0] [list $app resume_wait]]
                 return 0
             }
             "end" {

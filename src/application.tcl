@@ -71,14 +71,26 @@ oo::class create galgame::Application {
         return [file join $::galgame::ROOT game story.gal]
     }
 
-    # 开始新游戏: 载入剧本,重置状态并交给引擎执行.
+    # 释放当前剧本对象.
+    # [为什么必须显式 destroy] TclOO 对象不会因为失去引用而被回收:只把
+    # 状态里的引用换成新对象,旧 Story 连同它解析出的整份指令表会永久驻留,
+    # 每次开始游戏/读档都再堆一份.
+    method release_story {} {
+        set story [$state story]
+        if {$story ne ""} {
+            $state set_story ""
+            catch {$story destroy}
+        }
+    }
+
+    # 开始新游戏: 释放旧剧本,载入剧本,重置状态并交给引擎执行.
     method start_new {} {
         my stop_modes
+        my release_story
         set story [galgame::Story new [my story_path]]
         $state reset
         $state set_story $story
         $ui show_game
-        $ui clear_line
         $engine start
     }
 
@@ -111,6 +123,7 @@ oo::class create galgame::Application {
             return
         }
 
+        my release_story
         set story [galgame::Story new $script_path]
         $state reset
         $state set_story $story
@@ -126,7 +139,6 @@ oo::class create galgame::Application {
         $state set_pending_targets [dict get $data pending]
 
         $ui show_game
-        $ui clear_line
         if {[$state cg] ne ""} {
             $ui set_cg [$state cg]
         } else {
@@ -153,12 +165,15 @@ oo::class create galgame::Application {
         $engine resume_after_wait
     }
 
-    # 返回标题屏: 停止模式,停止音乐并清理界面.
+    # 返回标题屏: 停止模式,取消挂起的定时器,释放剧本与场景,最后清理界面.
+    # [为什么要在这里彻底清] "结束"就是整局结束,不该把已播完的剧本,旗标,
+    # 立绘继续留在内存里等下一次开始游戏;history 是日志,按设计保留.
     method return_title {} {
         my stop_modes
         $audio stop_music
-        $ui hide_choice
-        $ui clear_line
+        $engine cancel_wait
+        my release_story
+        $state reset_run
         $ui show_title
     }
 
@@ -167,18 +182,36 @@ oo::class create galgame::Application {
         $log show [$state history]
     }
 
-    # 显示设置窗口.
+    # 显示设置窗口;已打开时直接置前,避免重复创建同名窗口报错.
     method show_config {} {
+        set win [galgame::child_path $root config]
+        if {[winfo exists $win]} {
+            wm deiconify $win
+            raise $win
+            return
+        }
         galgame::ConfigDialog new $root $config [list [self] apply_config]
     }
 
-    # 显示存档槽位窗口.
+    # 显示存档槽位窗口;已打开时直接置前.
     method show_save_dialog {} {
+        set win [galgame::child_path $root [galgame::slot_window_name save]]
+        if {[winfo exists $win]} {
+            wm deiconify $win
+            raise $win
+            return
+        }
         galgame::SlotDialog new $root $save_manager "save" [list [self] save_slot]
     }
 
-    # 显示读档槽位窗口.
+    # 显示读档槽位窗口;已打开时直接置前.
     method show_load_dialog {} {
+        set win [galgame::child_path $root [galgame::slot_window_name load]]
+        if {[winfo exists $win]} {
+            wm deiconify $win
+            raise $win
+            return
+        }
         galgame::SlotDialog new $root $save_manager "load" [list [self] load_slot]
     }
 
@@ -286,9 +319,10 @@ oo::class create galgame::Application {
         my schedule_skip
     }
 
-    # 退出应用: 停止所有模式并关闭音乐.
+    # 退出应用: 停止所有模式,取消定时器并关闭音乐.
     method quit {} {
         my stop_modes
+        $engine cancel_wait
         $audio stop_music
         exit 0
     }

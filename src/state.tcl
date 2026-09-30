@@ -30,17 +30,35 @@ oo::class create galgame::GameState {
         my reset
     }
 
-    # 将所有状态恢复为初始值.
+    # 将所有状态恢复为初始值,用于开始新游戏与读档.
+    # 会连对话日志一起清空,因为这是一局的开始,不继承上一局的记录.
     method reset {} {
+        set history [list]
+        my reset_run
+        set bg "title"
+    }
+
+    # 清空"一局"的运行数据:剧本引用,指令指针,旗标与场景表现.
+    # [为什么保留 history] history 是给"历史"窗口看的日志,属于功能数据
+    # 而不是可由别处重建的缓存,所以整局结束后仍然保留,只在开始新游戏
+    # 或读档时被替换.
+    method reset_run {} {
         set story ""
         set ip 0
         set flags [dict create]
-        set history [list]
-        set bg "title"
+        my reset_scene
+    }
+
+    # 清空"一个场景"的表现数据,用于跳转到新 label 时丢弃上一个场景.
+    # [为什么不在这里碰 flags] 旗标是跨场景的分支依据:示例剧本在 library
+    # 里写 went_library,跳回 evening 后才读取它来决定结局.若在场景边界
+    # 清掉旗标,所有分支都会失效.
+    method reset_scene {} {
+        set bg ""
         set cg ""
         set characters [dict create]
-        set waiting 0
         set pending_targets [list]
+        set waiting 0
     }
 
     # 以下为 story 的读取与设置.

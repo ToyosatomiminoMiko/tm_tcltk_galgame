@@ -186,6 +186,17 @@ oo::class create galgame::Visual {
         my redraw
     }
 
+    # 清空画布与当前场景记录,丢弃上一个场景的背景/CG/立绘.
+    # [为什么保留缩放图] scaled_bg/scaled_figure 只跟画布尺寸有关,与场景
+    # 无关;丢弃它们会让下一次重绘重跑整轮 zoom/subsample 计算,属于纯粹
+    # 的重复劳动,因此这里只清场景,不动这两张按尺寸复用的图.
+    method clear {} {
+        set current_bg ""
+        set current_cg ""
+        set char_items [dict create]
+        $canvas delete all
+    }
+
     # 清空全部角色并重绘.
     method clear_characters {} {
         set char_items [dict create]

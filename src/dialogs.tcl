@@ -16,6 +16,16 @@ proc galgame::center_window {win parent} {
     wm geometry $win "+[expr {$pw + ($pw2 - $w) / 2}]+[expr {$py + ($ph2 - $h) / 2}]"
 }
 
+# 根据模式返回存档/读档窗口的 Tk 子路径名.
+# [为什么存档与读档要分开] 两者如果不共用窗口名,同时打开才互不干扰;
+# 应用层需要用同一个函数算出路径,才能判断窗口是否已存在.
+proc galgame::slot_window_name {mode} {
+    if {$mode eq "save"} {
+        return "slots_save"
+    }
+    return "slots_load"
+}
+
 # ConfigDialog 类: 让玩家调整文字速度,自动间隔,音效,音乐与全屏等设置.
 oo::class create galgame::ConfigDialog {
     # 设置窗口路径.
@@ -74,12 +84,23 @@ oo::class create galgame::ConfigDialog {
         ttk::frame $win.body.actions
         grid $win.body.actions -row 5 -column 0 -columnspan 3 -pady 14
         ttk::button $win.body.actions.save -text "应用" -command [list [self] save]
-        ttk::button $win.body.actions.cancel -text "取消" -command [list $win destroy]
+        ttk::button $win.body.actions.cancel -text "取消" -command [list [self] close]
         pack $win.body.actions.save $win.body.actions.cancel -side left -padx 8
 
+        wm protocol $win WM_DELETE_WINDOW [list [self] close]
         galgame::center_window $win $parent
         wm deiconify $win
         raise $win
+    }
+
+    # 关闭窗口并销毁本对象.
+    # [为什么必须销毁对象] TclOO 对象不会随 Tk 窗口一起回收:只 destroy
+    # 窗口,对象仍持有 config 与回调引用;反复开设置会不断堆积.
+    method close {} {
+        if {[winfo exists $win]} {
+            destroy $win
+        }
+        after idle [list [self] destroy]
     }
 
     # 文字速度滑杆回调,保存为整数毫秒.
@@ -92,7 +113,7 @@ oo::class create galgame::ConfigDialog {
         set auto_delay [expr {int($value)}]
     }
 
-    # 将临时值写回配置对象,关闭窗口并执行应用回调.
+    # 将临时值写回配置对象,关闭窗口并执行应用回调,最后销毁本对象.
     method save {} {
         $config set text_delay_ms $text_delay
         $config set auto_delay_ms $auto_delay
@@ -101,6 +122,7 @@ oo::class create galgame::ConfigDialog {
         $config set fullscreen $fullscreen
         destroy $win
         eval $apply_cmd
+        after idle [list [self] destroy]
     }
 }
 
@@ -126,7 +148,7 @@ oo::class create galgame::SlotDialog {
         set callback $callback_arg
         set current_slot 1
 
-        set win [toplevel [galgame::child_path $parent slots]]
+        set win [toplevel [galgame::child_path $parent [galgame::slot_window_name $mode]]]
         wm title $win [expr {$mode eq "save" ? "存档" : "读档"}]
         wm transient $win $parent
         wm resizable $win 0 0
@@ -140,13 +162,22 @@ oo::class create galgame::SlotDialog {
         ttk::frame $win.body.actions
         pack $win.body.actions -side bottom -pady 10
         ttk::button $win.body.actions.ok -text [expr {$mode eq "save" ? "保存到此格" : "读取此格"}] -command [list [self] commit]
-        ttk::button $win.body.actions.cancel -text "取消" -command [list $win destroy]
+        ttk::button $win.body.actions.cancel -text "取消" -command [list [self] close]
         pack $win.body.actions.ok $win.body.actions.cancel -side left -padx 8
 
+        wm protocol $win WM_DELETE_WINDOW [list [self] close]
         my refresh_list
         galgame::center_window $win $parent
         wm deiconify $win
         raise $win
+    }
+
+    # 关闭窗口并销毁本对象,避免选择窗口的对象在关闭后继续驻留.
+    method close {} {
+        if {[winfo exists $win]} {
+            destroy $win
+        }
+        after idle [list [self] destroy]
     }
 
     # 重新读取 6 个槽位的摘要并刷新列表.
@@ -180,5 +211,6 @@ oo::class create galgame::SlotDialog {
         set chosen $current_slot
         destroy $win
         eval [linsert $callback end $chosen]
+        after idle [list [self] destroy]
     }
 }
