@@ -1,5 +1,6 @@
 # 剧本模块: 解析面向行的小型剧情 DSL,并封装为 Story 类.
 # DSL 刻意保持精简,新命令可在 Engine 中继续扩展.
+# 一个内容包的剧本可以拆成多份 *.gal,用 include 拼成同一条指令流.
 namespace eval galgame {
     namespace export -force *
 }
@@ -129,7 +130,7 @@ proc galgame::tokenize {line} {
 
 # Story 类: 保存已解析的剧情指令序列与标签索引,供引擎执行.
 oo::class create galgame::Story {
-    # 剧本文件路径.
+    # 入口剧本文件路径.
     variable path
     # 解析后的指令列表,每项是一个 [命令 参数...] 列表.
     variable lines
@@ -143,7 +144,7 @@ oo::class create galgame::Story {
         my load $story_path
     }
 
-    # 加载并解析指定剧本文件.
+    # 加载并解析入口剧本, 入口文件可以用 include 拼接更多 *.gal.
     method load {story_path} {
         set path [file normalize $story_path]
         if {![file exists $path]} {
@@ -153,12 +154,31 @@ oo::class create galgame::Story {
         set lines [list]
         set labels [dict create]
         set title ""
-        set in_menu 0
-        set menu_choices [list]
+        my load_file $path [list]
 
-        set f [open $path r]
+        if {$title eq ""} {
+            set title "Galgame Sample"
+        }
+    }
+
+    # 解析一个剧本文件, 把指令追加进 lines, 标签写进 labels.
+    # stack 是正在解析的文件栈, 用来发现 include 成环.
+    # [为什么 include 在解析期展开] 展开后所有文件共享同一条指令流与同一份标签
+    # 表, 引擎看到的仍然只是一个线性指令数组: jump/if 的目标索引天然跨文件有效,
+    # 引擎与存档格式都不需要知道剧本被拆成了几份.
+    method load_file {file_path stack} {
+        if {[lsearch -exact $stack $file_path] >= 0} {
+            error "include 成环: $file_path (调用链: [join $stack { -> }])"
+        }
+        lappend stack $file_path
+
+        set f [open $file_path r]
         set raw [split [read $f] "\n"]
         close $f
+
+        # menu 块的状态每个文件各自独立: 一个 menu 块不允许跨文件.
+        set in_menu 0
+        set menu_choices [list]
 
         set lineno 0
         foreach line $raw {
@@ -176,7 +196,7 @@ oo::class create galgame::Story {
             if {$in_menu} {
                 if {$op eq "option"} {
                     if {[llength $args] != 2} {
-                        error "$path:$lineno: option requires <text> <label>"
+                        error "$file_path:$lineno: option requires <text> <label>"
                     }
                     lappend menu_choices [list [lindex $args 0] [lindex $args 1]]
                     continue
@@ -187,29 +207,50 @@ oo::class create galgame::Story {
                     set menu_choices [list]
                     continue
                 }
-                error "$path:$lineno: only option/endmenu allowed inside menu block"
+                error "$file_path:$lineno: only option/endmenu allowed inside menu block"
             }
 
             switch -- $op {
                 "menu" {
                     if {[llength $args] != 0} {
-                        error "$path:$lineno: menu takes no arguments"
+                        error "$file_path:$lineno: menu takes no arguments"
                     }
                     set in_menu 1
                     set menu_choices [list]
                 }
                 "label" {
                     if {[llength $args] != 1} {
-                        error "$path:$lineno: label requires one name"
+                        error "$file_path:$lineno: label requires one name"
                     }
-                    dict set labels [lindex $args 0] [llength $lines]
-                    lappend lines [list label [lindex $args 0]]
+                    set name [lindex $args 0]
+                    # [为什么要报重复标签] 剧本可以拆成多个文件, 重名标签在单文件
+                    # 时代只是被悄悄覆盖, 拆开之后会变成极难定位的跳转错误.
+                    if {[dict exists $labels $name]} {
+                        error "$file_path:$lineno: label 重复定义: $name"
+                    }
+                    dict set labels $name [llength $lines]
+                    lappend lines [list label $name]
+                }
+                "include" {
+                    if {[llength $args] != 1} {
+                        error "$file_path:$lineno: include requires one file"
+                    }
+                    # 相对当前文件所在目录解析, 这样整个剧本目录搬走仍然成立.
+                    set inc [file normalize [file join [file dirname $file_path] [lindex $args 0]]]
+                    if {![file exists $inc]} {
+                        error "$file_path:$lineno: include 的文件不存在: $inc"
+                    }
+                    my load_file $inc $stack
                 }
                 "title" {
                     if {[llength $args] != 1} {
-                        error "$path:$lineno: title requires one string"
+                        error "$file_path:$lineno: title requires one string"
                     }
-                    set title [lindex $args 0]
+                    # 窗口标题的唯一来源是内容包清单; 剧本里的 title 只作为
+                    # Story 的元信息, 取第一个出现的值.
+                    if {$title eq ""} {
+                        set title [lindex $args 0]
+                    }
                 }
                 default {
                     lappend lines [linsert $args 0 $op]
@@ -218,10 +259,7 @@ oo::class create galgame::Story {
         }
 
         if {$in_menu} {
-            error "$path: menu block is missing endmenu"
-        }
-        if {$title eq ""} {
-            set title "Galgame Sample"
+            error "$file_path: menu block is missing endmenu"
         }
     }
 

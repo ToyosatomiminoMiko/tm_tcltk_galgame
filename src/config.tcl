@@ -24,9 +24,11 @@ oo::class create galgame::Config {
     }
 
     # 写入各项默认配置.
+    # [为什么这里没有 title] 标题属于内容而不是运行时: 它由内容包清单提供,
+    # 见 src/pack.tcl 与 games/*/game.tcl. 运行时配置只保留与界面, 播放行为
+    # 有关的项, 所以换一个内容包不需要动这里一行.
     method defaults {} {
         set data [dict create \
-            title "放课后的约定" \
             text_delay_ms 28 \
             auto_delay_ms 1300 \
             skip_delay_ms 120 \

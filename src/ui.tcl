@@ -1,5 +1,7 @@
 # 界面模块: 构建主窗口,标题屏,对话框文字区域与选项区域.
 # 同时负责文字逐字显示的动画,以及视觉层/背景位置的更新.
+# [职责边界] 界面里没有任何具体作品的文案与尺寸: 标题, 副标题, 窗口尺寸, 地点名
+# 都由内容包提供, 换一个内容包界面照旧可用.
 namespace eval galgame {
     namespace export -force *
 }
@@ -14,6 +16,8 @@ oo::class create galgame::UI {
     variable app
     # 配置对象.
     variable config
+    # 内容包对象,提供标题,副标题,地点名与窗口尺寸.
+    variable pack
     # 视觉绘制对象.
     variable visual
     # 顶部位置标签.
@@ -42,11 +46,13 @@ oo::class create galgame::UI {
     variable skip_btn
 
     # 构造主界面并展示标题屏.
-    constructor {root_widget app_obj config_obj} {
+    # pack 提供窗口标题, 标题屏文案与窗口尺寸; 具体作品的信息不写在界面代码里.
+    constructor {root_widget app_obj config_obj pack_obj} {
         set top $root_widget
         set root ""
         set app $app_obj
         set config $config_obj
+        set pack $pack_obj
         set typing 0
         set line_name ""
         set line_text ""
@@ -54,9 +60,9 @@ oo::class create galgame::UI {
         set typing_job ""
         set choice_active 0
 
-        wm title $top [$config get title]
-        wm geometry $top 960x640
-        wm minsize $top 800 560
+        wm title $top [$pack title]
+        wm geometry $top [$pack geometry]
+        wm minsize $top {*}[$pack minsize]
         wm protocol $top WM_DELETE_WINDOW [list $app quit]
 
         my build
@@ -75,7 +81,7 @@ oo::class create galgame::UI {
         grid $root.topbar -row 0 -column 0 -sticky ew
         grid columnconfigure $root.topbar 1 -weight 1
 
-        ttk::label $root.topbar.title -text [$config get title] -font [list TkDefaultFont 10 bold]
+        ttk::label $root.topbar.title -text [$pack title] -font [list TkDefaultFont 10 bold]
         grid $root.topbar.title -row 0 -column 0 -padx 8
 
         set location_label [ttk::label $root.topbar.location -text "标题" -anchor center]
@@ -96,7 +102,7 @@ oo::class create galgame::UI {
 
         set canvas [canvas $root.canvas -background "#1d2228" -highlightthickness 0]
         grid $canvas -row 1 -column 0 -sticky nsew
-        set visual [galgame::Visual new $canvas]
+        set visual [galgame::Visual new $canvas $pack]
 
         ttk::frame $root.dialogue -padding [list 12 7]
         grid $root.dialogue -row 2 -column 0 -sticky ew
@@ -123,10 +129,13 @@ oo::class create galgame::UI {
     # 构建标题屏及其按钮.
     method build_title_screen {} {
         set title_frame [ttk::frame $root.title]
-        ttk::label $title_frame.title -text [$config get title] -font [list TkDefaultFont 30 bold]
-        ttk::label $title_frame.subtitle -text "一个用于演示 Tcl/Tk 架构的 Galgame 框架" -font TkDefaultFont
+        ttk::label $title_frame.title -text [$pack title] -font [list TkDefaultFont 30 bold]
         pack $title_frame.title -pady [list 130 8]
-        pack $title_frame.subtitle -pady 8
+        # 副标题属于内容: 清单里没写就不占位置.
+        if {[$pack subtitle] ne ""} {
+            ttk::label $title_frame.subtitle -text [$pack subtitle] -font TkDefaultFont
+            pack $title_frame.subtitle -pady 8
+        }
         ttk::frame $title_frame.buttons
         pack $title_frame.buttons -pady 30
         ttk::button $title_frame.buttons.new -text "开始游戏" -width 16 -command [list $app start_new]
@@ -175,17 +184,11 @@ oo::class create galgame::UI {
         $location_label configure -text $text
     }
 
-    # 把背景编号翻译成可读的中文地点名.
+    # 把背景编号翻译成可读的地点名.
+    # 映射表来自内容包清单的 locations 字段: 界面代码不再内置任何作品的地名,
+    # 清单里没写的 id 原样显示, 因此新内容包不改这里也能跑.
     method location_name {bg_id} {
-        switch -- $bg_id {
-            "classroom" { return "教室" }
-            "library" { return "图书馆" }
-            "rooftop" { return "天台" }
-            "street" { return "放学路上" }
-            "sunset" { return "黄昏的河堤" }
-            "room" { return "自己的房间" }
-            default { return $bg_id }
-        }
+        return [$pack location_name $bg_id]
     }
 
     # 切换背景并同步更新位置标签.

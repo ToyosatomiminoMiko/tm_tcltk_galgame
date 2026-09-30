@@ -1,0 +1,24 @@
+# 示例内容包的剧本(结局部分), 由 main.gal 用 include 拼接.
+# 被 include 的文件与主文件共享同一条指令流: label 全局可见, 重复定义会报错.
+
+label library_ending
+bg sunset
+show alice blush center
+say "Alice" "找到那本书的时候,你好像比我还开心."
+narrate "后来,那本小说成了你们共同的秘密."
+sfx click
+end
+
+label rooftop_ending
+bg sunset
+show alice smile center
+say "Alice" "下次...还可以一起上来吗?"
+narrate "你没有回答,只是点了点头."
+end
+
+label home_ending
+bg sunset
+show alice normal center
+say "Alice" "虽然今天很普通,但能一起走一段路,已经很好."
+narrate "也许明天,故事还会继续."
+end

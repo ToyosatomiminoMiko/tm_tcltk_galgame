@@ -1,5 +1,7 @@
 # 应用模块: 组装各子系统,并对外提供启动,存档,读档,设置等高层操作.
 # 它是 main.tcl 创建的唯一对象,也是各种界面回调的汇聚点.
+# [职责边界] 本模块不决定"玩哪个游戏": 内容包与存档目录都由入口解析后注入,
+# 这里只负责把它们接到各子系统上.
 namespace eval galgame {
     namespace export -force *
 }
@@ -8,6 +10,8 @@ namespace eval galgame {
 oo::class create galgame::Application {
     # 主窗口路径.
     variable root
+    # 内容包对象(标题,剧本,素材).
+    variable pack
     # 配置对象.
     variable config
     # 游戏状态对象.
@@ -29,19 +33,27 @@ oo::class create galgame::Application {
     variable skip_job
 
     # 构造时创建并连接所有子系统.
-    constructor {project_root} {
+    # pack 提供内容包, save_dir 提供该内容包的存档目录: 运行时不需要知道
+    # 它们从哪里来, 由入口解析后注入.
+    constructor {pack_obj save_dir} {
         set root .
         set mode "none"
         set auto_job ""
         set skip_job ""
 
+        set pack $pack_obj
         set config [galgame::Config new]
         set state [galgame::GameState new]
         set audio [galgame::Audio new $config]
-        set ui [galgame::UI new $root [self] $config]
-        set save_manager [galgame::SaveManager new $project_root]
+        set ui [galgame::UI new $root [self] $config $pack]
+        set save_manager [galgame::SaveManager new $save_dir]
         set log [galgame::LogWindow new $root [$state history]]
         set engine [galgame::Engine new [self] $state $ui $audio]
+    }
+
+    # 返回内容包对象, 便于界面或日志查询当前作品信息.
+    method pack {} {
+        return $pack
     }
 
     # 正常启动: 显示主窗口并进入事件循环.
@@ -66,9 +78,9 @@ oo::class create galgame::Application {
         vwait ::galgame::_forever
     }
 
-    # 返回默认剧情文件路径.
+    # 返回起始剧本文件路径(由内容包清单的 entry 字段声明).
     method story_path {} {
-        return [file join $::galgame::ROOT game story.gal]
+        return [$pack entry_path]
     }
 
     # 释放当前剧本对象.
@@ -110,14 +122,22 @@ oo::class create galgame::Application {
             tk_messageBox -parent $root -type ok -icon info -message "当前没有正在进行的游戏."
             return
         }
-        $save_manager save $slot $state
+        $save_manager save $slot $state $pack
     }
 
     # 从指定槽位读档,恢复所有状态并交给引擎继续执行.
     method load_slot {slot} {
         my stop_modes
-        set data [$save_manager load $slot]
-        set script_path [dict get $data script]
+        # [为什么要 catch] 存档可能过旧,被外部改坏或属于别的内容包; 这类问题
+        # 必须给玩家一条可读提示, 而不是让 Tcl 错误直接终结整个界面.
+        if {[catch {set data [$save_manager load $slot $pack]} err]} {
+            tk_messageBox -parent $root -type ok -icon error -message $err
+            return
+        }
+
+        # 存档里记录的是相对内容包目录的剧本路径: 内容包整体搬走仍然有效,
+        # 因此这里用当前内容包的目录去拼, 而不是用存档时的绝对路径.
+        set script_path [file join [$pack dir] [dict get $data script]]
         if {![file exists $script_path]} {
             tk_messageBox -parent $root -type ok -icon error -message "存档对应的剧本不存在:\n$script_path"
             return
