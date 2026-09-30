@@ -1,14 +1,14 @@
-# 这是一个最小可运行的示例剧本。
-# 所有缩进只为可读性，解析器会忽略行首空白。
+# 这是一个最小可运行的示例剧本.
+# 所有缩进只为可读性,解析器会忽略行首空白.
 
 title "放课后的约定"
 
 label start
 bg classroom
 show alice normal center
-say "艾莉丝" "啊，你还没走？太好了。"
-narrate "夕阳把教室染成暖橙色，艾莉丝从窗边转过身来。"
-say "艾莉丝" "今天社团结束得早，要不要一起回去？"
+say "Alice" "啊,你还没走？太好了."
+narrate "夕阳把教室染成暖橙色,Alice从窗边转过身来."
+say "Alice" "今天社团结束得早,要不要一起回去？"
 menu
 option "陪她去图书馆" library
 option "去天台吹风" rooftop
@@ -19,9 +19,9 @@ label library
 bg library
 show alice smile center
 flag went_library 1
-say "艾莉丝" "你居然愿意陪我来，好开心。"
-narrate "两人在书架间找那本她念叨了很久的小说。"
-say "夏树" "喂，你们也来图书馆？真巧。"
+say "Alice" "你居然愿意陪我来,好开心."
+narrate "两人在书架间找那本她念叨了很久的小说."
+say "夏树" "喂,你们也来图书馆？真巧."
 show natsuki normal right
 add affection 1
 jump evening
@@ -30,17 +30,17 @@ label rooftop
 bg rooftop
 show alice blush center
 flag went_rooftop 1
-say "艾莉丝" "这里的晚风，好舒服……"
-narrate "她的发梢被风轻轻吹起。"
-add affection 1
+say "Alice" "这里的晚风,好舒服……"
+narrate "她的发梢被风轻轻吹起."
+add affection 1 
 jump evening
 
 label home
 bg street
 show alice normal center
 flag went_home 1
-say "艾莉丝" "那……明天见。"
-narrate "你们在路口分开，夕阳把影子拉得很长。"
+say "Alice" "那……明天见."
+narrate "你们在路口分开,夕阳把影子拉得很长."
 jump evening
 
 label evening
@@ -54,21 +54,21 @@ jump library_ending
 label library_ending
 bg sunset
 show alice blush center
-say "艾莉丝" "找到那本书的时候，你好像比我还开心。"
-narrate "后来，那本小说成了你们共同的秘密。"
+say "Alice" "找到那本书的时候,你好像比我还开心."
+narrate "后来,那本小说成了你们共同的秘密."
 sfx click
 end
 
 label rooftop_ending
 bg sunset
 show alice smile center
-say "艾莉丝" "下次……还可以一起上来吗？"
-narrate "你没有回答，只是点了点头。"
+say "Alice" "下次……还可以一起上来吗？"
+narrate "你没有回答,只是点了点头."
 end
 
 label home_ending
 bg sunset
 show alice normal center
-say "艾莉丝" "虽然今天很普通，但能一起走一段路，已经很好。"
-narrate "也许明天，故事还会继续。"
+say "Alice" "虽然今天很普通,但能一起走一段路,已经很好."
+narrate "也许明天,故事还会继续."
 end
